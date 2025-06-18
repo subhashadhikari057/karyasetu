@@ -1,14 +1,124 @@
+// ────────────────────────────────────────────────────────────────
+// File: backend/prisma/schema.prisma
+// Purpose: define all core auth & multi-tenant models
+// ────────────────────────────────────────────────────────────────
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")   // ← set in backend/.env
 }
 
-model Test {
+/*
+|--------------------------------------------------------------------------
+| Generic “ability” a user can perform (e.g. HR_RUN_PAYROLL)
+|--------------------------------------------------------------------------
+*/
+model Permission {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  description String?
+
+  roles       RolePermission[]
+}
+
+/*
+|--------------------------------------------------------------------------
+| A role groups many permissions and belongs to *one* tenant
+| (isSystem=true means it’s a global role like SUPERADMIN).
+|--------------------------------------------------------------------------
+*/
+model Role {
+  id          String          @id @default(cuid())
+  name        String
+  isSystem    Boolean         @default(false)
+  tenantId    String?
+  tenant      Tenant?         @relation(fields: [tenantId], references: [id])
+
+  permissions RolePermission[]
+  users       UserRole[]
+  createdAt   DateTime        @default(now())
+
+  @@unique([name, tenantId]) // Ensure role names are unique per tenant
+}
+
+/*
+|--------------------------------------------------------------------------
+| Join table: many‐to‐many Role ↔ Permission
+|--------------------------------------------------------------------------
+*/
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+}
+
+/*
+|--------------------------------------------------------------------------
+| Tenant / company
+|--------------------------------------------------------------------------
+*/
+model Tenant {
   id        String   @id @default(cuid())
   name      String
+  slug      String   @unique
+  users     User[]
+  roles     Role[]
   createdAt DateTime @default(now())
+}
+
+/*
+|--------------------------------------------------------------------------
+| Application user (belongs to a tenant except SUPERADMIN)
+|--------------------------------------------------------------------------
+*/
+model User {
+  id                 String      @id @default(cuid())
+  email              String      @unique
+  password           String
+  mustChangePassword Boolean     @default(true)
+  passwordChangedAt  DateTime?
+  tenantId           String?
+  tenant             Tenant?     @relation(fields: [tenantId], references: [id])
+
+  roles              UserRole[]
+  refreshTokens      RefreshToken[]
+  createdAt          DateTime    @default(now())
+
+  @@index([tenantId], map: "idx_tenant_user")  // Indexed for performance
+}
+
+/*
+|--------------------------------------------------------------------------
+| Join table: many‐to‐many User ↔ Role
+|--------------------------------------------------------------------------
+*/
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@id([userId, roleId])
+}
+
+/*
+|--------------------------------------------------------------------------
+| Stored refresh tokens (so we can invalidate on logout)
+|--------------------------------------------------------------------------
+*/
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 }
