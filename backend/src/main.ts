@@ -9,6 +9,9 @@ import { config } from "dotenv";
 import { prisma } from "./config/db";
 import { env } from "./config/env";
 import authRoutes from "./routes/auth.routes";
+import userRoutes from "./routes/user.routes";
+import roleRoutes from "./routes/role.routes";
+
 
 // ── Routes ──
 import tenantRoutes from "./routes/tenant.routes";
@@ -25,6 +28,9 @@ app.use(express.json());
 // ── Routes ──
 app.use("/auth", authRoutes);
 app.use("/tenants", tenantRoutes);
+app.use("/users", userRoutes);
+
+app.use("/roles", roleRoutes);
 
 app.get("/health", async (_, res) => {
   try {
