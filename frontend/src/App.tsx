@@ -1,9 +1,13 @@
-export default function App() {
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./pages/marketing/Home";
+
+export default function AppRouter() {
   return (
-    <div className="h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 to-purple-700">
-      <h1 className="text-5xl font-bold text-white drop-shadow-lg">
-        ✅ Tailwind is working!
-      </h1>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home/>} />
+        {/* We’ll add /login and protected routes later */}
+      </Routes>
+    </BrowserRouter>
   );
 }
